@@ -11,7 +11,7 @@ TOKEN = "SECRET_TOKEN_HERE"
 
 class GTNHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
-        pass # Matikan log agar tidak nyepam di VPS
+        pass # Matikan log agar tidak nyepam di memori VPS
 
     def check_auth(self):
         if self.headers.get('X-GTN-Token') != TOKEN:
@@ -60,19 +60,29 @@ class GTNHandler(http.server.BaseHTTPRequestHandler):
             }
             self.wfile.write(json.dumps(data).encode())
             
-        # ⚡ RUTE 2: MENERIMA PERINTAH DARI HP
+        # ⚡ RUTE 2: MENERIMA PERINTAH BRUTAL DARI HP
         elif parsed_path.path == '/action':
             qs = parse_qs(parsed_path.query)
             cmd = qs.get('cmd', [''])[0]
             
             if cmd == 'flush_ram':
-                # Perintah brutal bersihkan Cache
                 os.system('sync; echo 3 > /proc/sys/vm/drop_caches')
-                msg = "RAM Berhasil di-Flush"
+                msg = "RAM Berhasil di-Flush ⚡"
+                
             elif cmd == 'restart_tunnel':
-                # Restart service andalan GTN (bisa kamu tambah sendiri service lainnya)
                 os.system('systemctl restart ssh ws dropbear stunnel4 xray > /dev/null 2>&1') 
-                msg = "Tunnel Service Direstart"
+                msg = "Tunnel Service Direstart 🔄"
+                
+            elif cmd == 'clear_logs':
+                os.system('journalctl --vacuum-time=1d > /dev/null 2>&1')
+                os.system('rm -rf /var/log/*.log > /dev/null 2>&1')
+                msg = "Log Sistem & Sampah Berhasil Dihapus! 🗑️"
+                
+            elif cmd == 'reboot_vps':
+                # Delay 2 detik agar aplikasi Android menerima respons sukses dulu sebelum VPS mati
+                os.system('sleep 2 && reboot &')
+                msg = "VPS Sedang Di-Reboot! Tunggu 1 menit. ☠️"
+                
             else:
                 msg = "Perintah tidak dikenal"
                 
@@ -85,6 +95,6 @@ class GTNHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
-# Jalankan server
+# Jalankan server nonstop
 with socketserver.TCPServer(("", PORT), GTNHandler) as httpd:
     httpd.serve_forever()
